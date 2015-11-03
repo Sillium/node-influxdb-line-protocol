@@ -9,9 +9,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/chetandhembre/node-influxdb-line-protocol.git"
+    "url": "https://github.com/Jumplead/node-influxdb-line-protocol"
   },
-  "author": "ichetandhembre<chetandhembre@gmail.com>",
+  "author": "adam@jumplead.com",
   "license": "MIT",
   "keywords": [
     "influxdb",
