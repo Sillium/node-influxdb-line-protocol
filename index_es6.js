@@ -1,76 +1,78 @@
-'use strict'
-var dgram = require('dgram')
-var EventEmitter = require('events').EventEmitter
-var util = require('util')
+'use strict';
 
-util.inherits(influx_line_udp, EventEmitter)
+const dgram = require('dgram');
+const EventEmitter = require('events').EventEmitter;
+const util = require('util');
 
-function influx_line_udp (host, port) {
-  var self = this
-  EventEmitter.call(self)
-  self.host = host
-  self.port = port
-  self.socket = dgram.createSocket('udp4')
-  return self
+util.inherits(influxLineUdp, EventEmitter);
+
+function influxLineUdp(host, port) {
+  const self = this; // eslint-disable-line no-invalid-this
+  EventEmitter.call(self);
+  self.host = host;
+  self.port = port;
+  self.socket = dgram.createSocket('udp4');
+  return self;
 }
 
-module.exports = influx_line_udp
+module.exports = influxLineUdp;
 
-influx_line_udp.prototype.send = function (mesurement, fields, tags={}, timestamp=undefined) {
-  let self = this
-  if (!mesurement || typeof mesurement !== 'string') {
-    return self.emit('error', 'mesurement should be string')
+influxLineUdp.prototype.send = function send(measurement, fields, tags = {}, timestamp) {
+  const self = this;
+  if (!measurement || typeof measurement !== 'string') {
+    return self.emit('error', 'mesurement should be string');
   }
 
-  mesurement = escape(mesurement)
+  const _measurement = escape(measurement);
 
   if (!fields || !isObject(fields)) {
-    return self.emit('error', 'fields should be an Object')
+    return self.emit('error', 'fields should be an Object');
   }
 
-  let escaped_fields_array = []
-  let unescaped_fields_keys = Object.keys(fields) || []
-  for (let i = 0; i < unescaped_fields_keys.length; i++) {
-    let key = unescaped_fields_keys[i];
-    let value = fields[unescaped_fields_keys[i]];
+  const escaped_fields_array = [];
+  const unescaped_fields_keys = Object.keys(fields) || [];
+  for (const key of unescaped_fields_keys) {
+    const value = fields[key];
 
-    if(key && value !== undefined){
-      var casted = cast(value);
+    if (key && value !== undefined) {
+      const casted = cast(value);
 
-      if(casted != null){
-        escaped_fields_array.push(escape(key) + '=' + casted)
+      if (casted != null) {
+        escaped_fields_array.push(escape(key) + '=' + casted);
       }
     }
   }
-  let escaped_fields_str = escaped_fields_array.join(',')
+  const escaped_fields_str = escaped_fields_array.join(',');
 
-  let escapeTags = ''
+  let escapedTags = '';
 
   if (!isObject(tags)) {
-    return self.emit('error', 'tags if provied should be an object')
+    return self.emit('error', 'tags if provied should be an object');
   }
 
-  let esapedTagsArray = []
-  for (let tagKey in tags) {
-    if(tagKey && tags[tagKey] && tags[tagKey] !== ''){
-      esapedTagsArray.push(escape(tagKey) + '=' + escape(tags[tagKey]))
+  const escapedTagsArray = [];
+  for (const tagKey in tags) {
+    if (tagKey && tags[tagKey] && tags[tagKey] !== '') {
+      escapedTagsArray.push(escape(tagKey) + '=' + escape(tags[tagKey]));
     }
   }
-  escapeTags = esapedTagsArray.join(',')
+  escapedTags = escapedTagsArray.join(',');
 
-  let data = `${mesurement}${escapeTags.length > 0 ? ',' + escapeTags : ''} ${escaped_fields_str}${timestamp ? ' ' + timestamp : ''}`
+  const data = `${_measurement}${escapedTags.length > 0 ? ',' + escapedTags : ''} ${escaped_fields_str}${timestamp ? ' ' + timestamp : ''}`; //eslint-disable-line max-len
 
   if (!self.socket) {
-    self.socket = dgram.createSocket('udp4')
+    self.socket = dgram.createSocket('udp4');
   }
-  _send(self.socket, data, 0, self.port, self.host)
-}
+  _send(self.socket, data, 0, self.port, self.host);
+  return true;
+};
 
-function _send (socket, data, offset, port, host) {
-  if (!Buffer.isBuffer(data)) {
-    data = new Buffer(data)
+function _send(socket, data, offset, port, host) {
+  let _data = data;
+  if (!Buffer.isBuffer(_data)) {
+    _data = new Buffer(_data);
   }
-  socket.send(data, offset, data.length, port, host)
+  socket.send(_data, offset, _data.length, port, host);
 }
 
 function isString(arg) {
@@ -81,59 +83,56 @@ function isBoolean(arg) {
   return typeof arg === 'boolean' || arg instanceof Boolean;
 }
 
-function isObject (obj) {
-  let type = typeof obj
-  return type === 'function' || type === 'object' && !!obj
+function isObject(obj) {
+  const type = typeof obj;
+  return type === 'function' || type === 'object' && Boolean(obj);
 }
 
 function isNumber(arg) {
   return typeof arg === 'number' || arg instanceof Number;
 }
 
-function isInt(n) {
-   return n % 1 === 0;
-}
-
-function cast (value) {
-  if(isString(value)){
+function cast(value) {
+  if (isString(value)) {
     return '"' + escape(value) + '"';
   }
 
-  if(isBoolean(value)){
+  if (isBoolean(value)) {
     return value ? 'TRUE' : 'FALSE';
   }
 
-  if(isNumber(value)){
+  if (isNumber(value)) {
     // javascript can't tell the difference between 1.0 and 1, so cast all as float
     return parseFloat(value);
   }
 
-  if(isObject(value)){
+  if (isObject(value)) {
     return '"' + escape(value.toString()) + '"';
   }
 
   return value;
 }
 
-function escape (value) {
-  var val = value;
+function escape(value) {
+  let val = value;
 
-  if(isObject(val) || isNumber(val)){
+  if (isObject(val) || isNumber(val)) {
     val = val.toString();
   }
 
-  if(isBoolean(value)){
+  if (isBoolean(value)) {
     return value ? 'TRUE' : 'FALSE';
   }
 
-  if(!isString(val)){
+  if (!isString(val)) {
     return null;
   }
 
-  return  val ? val.split('').map(function (character) {
-      if (character === ' ' || character === ',' || (character === '"')) {
-        character = '\\' + character
-      }
-      return character
-    }).join('') : null;
+  return val ? val.split('').map(function f(character) {
+    let _character = character;
+    if (_character === ' ' || _character === ',' || _character === '"') {
+      _character = '\\' + _character;
+    }
+    return _character;
+  }).join('') : null;
 }
